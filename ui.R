@@ -31,6 +31,8 @@ shinyUI(fluidPage(
       selectInput("model", label="Model", 
                   choices=c(modelMapping$metArgName),
                   selected=modelMapping$metArgName[1]),
+      h3(textOutput("modelName")),
+      hr(),
       sliderInput("cores", "Number of Cores", 1, detectCores(), 1, step = 1),
       hr(),
       uiOutput("chooseParams")

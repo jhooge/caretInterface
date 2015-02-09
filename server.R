@@ -23,6 +23,12 @@ testOutput <- function(input, output) {
   })
   
 
+  output$modelName <- renderText({
+    model <- getModelInfo(input$model)
+    name <- modelMapping$model[modelMapping$metArgName == input$model]
+    return(name[1])
+  })
+  
   output$chooseParams <- renderUI({
     
     model <- getModelInfo(modelMapping$metArgName[1])
