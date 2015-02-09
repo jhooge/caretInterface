@@ -1,33 +1,43 @@
-require(devtools)
+library(doMC)
+library(caret)
 
-shinyUI(navbarPage("Caret Machine Learning Interface",
-                   fluidPage(
-                       titlePanel("Model Selection"),
-                       sidebarLayout(
-                           sidebarPanel(
-                               selectInput("model", label="Model", 
-                                           choices=c("K Nearest Neighbors", "Stochastic Gradient Boosting"),
-                                           selected="Stochastic Gradient Boosting"),
-                               sliderInput("cores", "Number of Cores", 1, 16, 1, step = 1),
-                               hr(),
-                               h3("Tuning Parameters"),
-                               conditionalPanel(
-                                   condition = "input.model == 'Stochastic Gradient Boosting'", 
-                                   numericInput("interaction.depth", label="Tree Complexity (Interaction Depth)", value=5),
-                                   numericInput("n.trees", label="Number of Iterations (Trees)", value=500),
-                                   numericInput("shrinkage", label="Learning Rate (Shrinkage)", value=0.1)),
-                               conditionalPanel(
-                                   condition = "input.model == 'K Nearest Neighbors'",
-                                   numericInput("k", label="Neighbors", value=1)),
-                               br(),
-                               actionButton("compute","Compute")
-                           ),
-                           mainPanel(
-                               tabsetPanel(id="modelSelection",type="pills",position="above",
-                                           tabPanel(title="Data",
-                                                    fluidRow(plotOutput("boxPlot"))),
-                                           tabPanel(title="Model Selection",
-                                                    fluidRow(plotOutput("modelSelectionPlot"))),
-                                           tabPanel(title="Result", 
-                                                    fluidRow(dataTableOutput("classificationResult")))
-                               ))))))
+## Takes caret's model lookup table
+## Returns mapping of model and method argument name
+# getModelMapping <- function(modelLookupTable) {
+#   modelsInfo <- sapply(unique(modelLookupTable$model), getModelInfo)
+#   metArgName  <- c()
+#   model <- c()
+#   for (name in names(modelsInfo)) {
+#     subnames <- names(modelsInfo[[name]])
+#     for (subname in subnames){
+#       metArgName <- c(names, subname)
+#       model <- c(labels, modelsInfo[[name]][[subname]]$label)
+#     }
+#   }
+#   models <- data.frame(model=model, metArgName=metArgName)
+#   models$model <- as.character(models$model)
+#   models$metArgName <- as.character(models$metArgName)
+#   modls <- unique(models)
+#   return(models)
+# }
+# modelMapping <- getModelMapping(modelLookup()
+
+load("RData/modelMapping.RData")
+
+shinyUI(fluidPage(
+  titlePanel("Shiny Caret Interface"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("model", label="Model", 
+                  choices=c(modelMapping$metArgName),
+                  selected=modelMapping$metArgName[1]),
+      sliderInput("cores", "Number of Cores", 1, detectCores(), 1, step = 1),
+      hr(),
+      uiOutput("chooseParams")
+      ),
+    mainPanel(
+      tableOutput("parameters")
+      )
+    )
+  )
+)

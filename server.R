@@ -1,82 +1,58 @@
 library(shiny)
-library(AppliedPredictiveModeling)
-library(mlbench)
 library(caret)
 library(doMC)
 
-require(devtools)
-require(gbm)
-require(survival)
-require(splines)
-require(plyr)
+load("RData/modelMapping.RData")
 
+testOutput <- function(input, output) {
+  
+  output$contents <- renderTable({
+    # input$file1 will be NULL initially. After the user selects
+    # and uploads a file, it will be a data frame with 'name',
+    # 'size', 'type', and 'datapath' columns. The 'datapath'
+    # column will contain the local filenames where the data can
+    # be found.
+    
+    inFile <- input$file1
+    
+    if (is.null(inFile))
+      return(NULL)
+    
+    read.csv(inFile$datapath, header = input$header,
+             sep = input$sep, quote = input$quote)
+  })
+  
 
-classificationOutput <- function(input, output) {
-    registerDoMC(cores = input$cores)
+  output$chooseParams <- renderUI({
     
-    set.seed(808)
+    model <- getModelInfo(modelMapping$metArgName[1])
+    model <- getModelInfo(input$model)
+    parameters <- model[[input$model]]$parameters
     
-    sonarData <- Sonar[,1:length(Sonar)-1]
-    sonarClasses <- Sonar$Class
+    isNumeric  <- parameters$class == "numeric"
+    numParams  <- subset(parameters, isNumeric)
+    textParams <- subset(parameters, !isNumeric)
     
-    tuningParams <- isolate({
-        switch(input$model,
-               "K Nearest Neighbors" = list(k=input$k),
-               "Stochastic Gradient Boosting" = list(interaction.depth=c(1,5,9),
-                                                     n.trees = seq(50,input$n.trees, 50),
-                                                     shrinkage = input$shrinkage))
-    })
-    
-    fitControl <- trainControl(## 10-fold CV
-        method = "repeatedcv",
-        number = 10,
-        ## repeated ten times
-        repeats = 10,
-        classProbs = TRUE,
-        allowParallel = TRUE) 
-    
-    grid <- reactive({
-        grid <- isolate({expand.grid(tuningParams)})
-        return(grid)
-    })
-    
-    gbmFit <- reactive({train(sonarData, 
-                              sonarClasses,
-                              method = "gbm",
-                              trControl = fitControl,
-                              ## Now specify the exact models 
-                              ## to evaludate:
-                              tuneGrid = grid(),
-                              ## This last option is actually one
-                              ## for gbm() that passes through
-                              verbose = FALSE)})
-    
-    output$boxPlot <- renderPlot({
-        featurePlot(x = Sonar[, 1:length(Sonar)-1],
-                    y = Sonar$Class,
-                    plot = "box",
-                    ## Pass in options to bwplot() 
-                    scales = list(y = list(relation="free"),
-                                  x = list(rot = 90)),
-                    layout = c(2,1 ),
-                    auto.key = list(columns = 2))
-    })
-    
-    output$modelSelectionPlot <- renderPlot({
-        if (input$compute == 0)
-            return(NULL)
-        fit <- gbmFit()
-        plot(ggplot(fit))
-    })
-    
-    output$classificationResult <-renderDataTable({
-        if (input$compute == 0)
-            return(NULL)
-        fit <- gbmFit()
-        fit$results
-    })
+    inputs <- list()
+    if(nrow(numParams) != 0) {
+      for (i in 1:nrow(numParams)) {
+        inputs <- list(inputs, numericInput(inputId = as.character(numParams$parameter)[i],
+                                            label = as.character(numParams$label)[i],
+                                            value = 0))
+      }
+    }
+    if(nrow(textParams) != 0) {
+      for (i in 1:nrow(textParams)) {
+        inputs <- list(inputs, textInput(inputId = as.character(textParams$parameter)[i],
+                                         label = as.character(textParams$label)[i],
+                                         value = ""))
+      }
+    }
+    return(inputs)
+  })
 }
-
+  
 shinyServer(function(input, output) {
-    output <- classificationOutput(input, output)
+  output <- testOutput(input, output)
+#     output <- classificationOutput(input, output)
 })
